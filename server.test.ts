@@ -30,7 +30,7 @@ const accounts = [
 
 let upstream: ReturnType<typeof Bun.serve>;
 let upstreamUrl: string;
-const seen: Array<{ path: string; body: unknown }> = [];
+const seen: Array<{ path: string; body: unknown; authorization: string | null }> = [];
 
 beforeAll(() => {
   upstream = Bun.serve({
@@ -38,7 +38,7 @@ beforeAll(() => {
     fetch: async (request) => {
       const url = new URL(request.url);
       const body = request.method === "POST" ? await request.json() : null;
-      seen.push({ path: url.pathname, body });
+      seen.push({ path: url.pathname, body, authorization: request.headers.get("authorization") });
       if (url.pathname === "/health") return Response.json({ status: "ok" });
       if (url.pathname === "/api/accounts") return Response.json({ accounts });
       if (url.pathname.endsWith("/rate-limit-reset-credits")) {
@@ -62,7 +62,11 @@ beforeAll(() => {
 afterAll(() => upstream.stop(true));
 
 function call(path: string, init: RequestInit = {}) {
-  const handler = createHubHandler({ upstreamBaseUrl: upstreamUrl, managementKey: "secret" });
+  const handler = createHubHandler({
+    upstreamBaseUrl: upstreamUrl,
+    upstreamApiKey: "upstream-secret",
+    managementKey: "secret",
+  });
   return handler(new Request(`http://hub.test${path}`, {
     ...init,
     headers: { authorization: "Bearer secret", ...init.headers },
@@ -135,7 +139,13 @@ describe("CLIProxyAPI compatibility", () => {
     expect(seen.at(-1)).toEqual({
       path: "/api/accounts/account-a/rate-limit-reset-credits/consume",
       body: { redeemRequestId: "request-1" },
+      authorization: "Bearer upstream-secret",
     });
+  });
+
+  test("authenticates every codex-lb request with the upstream API key", async () => {
+    await call("/v0/management/auth-files");
+    expect(seen.at(-1)?.authorization).toBe("Bearer upstream-secret");
   });
 
   test("supports models, refresh, reset-quota, and X-Management-Key", async () => {

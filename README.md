@@ -33,9 +33,14 @@ Environment variables:
 | `T3_CLB_HUB_HOST` | `127.0.0.1` | Listen address |
 | `T3_CLB_HUB_PORT` | `8317` | Listen port |
 | `T3_CLB_HUB_UPSTREAM` | `http://127.0.0.1:2455` | codex-lb base URL |
+| `T3_CLB_HUB_UPSTREAM_API_KEY` | optional | Bearer credential for codex-lb |
+| `T3_CLB_HUB_UPSTREAM_API_KEY_FILE` | `~/.config/codex-lb/client-api-key` | Read the codex-lb credential from a file instead |
 
 Set either management-key variable. The environment value takes precedence;
 the file form is recommended for long-running services.
+
+When codex-lb API-key authentication is enabled, set either upstream API-key
+variable. Its environment value also takes precedence over the file.
 
 Keep the listener on loopback when exposing it through Tailscale Serve. In T3
 Code, use the Serve URL and the same management key.

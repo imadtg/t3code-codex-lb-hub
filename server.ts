@@ -39,6 +39,7 @@ type ApiCallRequest = {
 
 type HubOptions = {
   upstreamBaseUrl?: string;
+  upstreamApiKey?: string;
   managementKey?: string;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
@@ -170,6 +171,7 @@ function normalizeCreditSnapshot(snapshot: unknown): Json {
 
 export function createHubHandler(options: HubOptions = {}): (request: Request) => Promise<Response> {
   const upstreamBaseUrl = (options.upstreamBaseUrl ?? "http://127.0.0.1:2455").replace(/\/$/, "");
+  const upstreamApiKey = options.upstreamApiKey?.trim() ?? "";
   const expectedKey = options.managementKey ?? "";
   const timeoutMs = options.timeoutMs ?? 15_000;
   const fetchImpl = options.fetchImpl ?? fetch;
@@ -180,7 +182,11 @@ export function createHubHandler(options: HubOptions = {}): (request: Request) =
     fetchImpl(`${upstreamBaseUrl}${path}`, {
       ...init,
       signal: AbortSignal.timeout(timeoutMs),
-      headers: { accept: "application/json", ...init?.headers },
+      headers: {
+        accept: "application/json",
+        ...(upstreamApiKey ? { authorization: `Bearer ${upstreamApiKey}` } : {}),
+        ...init?.headers,
+      },
     });
 
   const accounts = async (fresh = false): Promise<AccountsResponse> => {
@@ -333,6 +339,15 @@ if (import.meta.main) {
   const hostname = process.env.T3_CLB_HUB_HOST ?? "127.0.0.1";
   const port = Number(process.env.T3_CLB_HUB_PORT ?? "8317");
   const upstreamBaseUrl = process.env.T3_CLB_HUB_UPSTREAM ?? "http://127.0.0.1:2455";
+  const configuredUpstreamApiKeyFile = process.env.T3_CLB_HUB_UPSTREAM_API_KEY_FILE?.trim();
+  const defaultUpstreamApiKeyFile = process.env.HOME
+    ? `${process.env.HOME}/.config/codex-lb/client-api-key`
+    : "";
+  const upstreamApiKeyFile = configuredUpstreamApiKeyFile || defaultUpstreamApiKeyFile;
+  const upstreamApiKey = process.env.T3_CLB_HUB_UPSTREAM_API_KEY?.trim() ||
+    (upstreamApiKeyFile && await Bun.file(upstreamApiKeyFile).exists()
+      ? (await Bun.file(upstreamApiKeyFile).text()).trim()
+      : "");
   const configuredKeyFile = process.env.T3_CLB_HUB_MANAGEMENT_KEY_FILE?.trim();
   const defaultKeyFile = process.env.HOME
     ? `${process.env.HOME}/.config/t3code-codex-lb-hub/management-key`
@@ -345,6 +360,6 @@ if (import.meta.main) {
   if (!managementKey) {
     throw new Error("set T3_CLB_HUB_MANAGEMENT_KEY or T3_CLB_HUB_MANAGEMENT_KEY_FILE");
   }
-  Bun.serve({ hostname, port, fetch: createHubHandler({ upstreamBaseUrl, managementKey }) });
+  Bun.serve({ hostname, port, fetch: createHubHandler({ upstreamBaseUrl, upstreamApiKey, managementKey }) });
   console.log(`[t3code-codex-lb-hub] listening on http://${hostname}:${port}, upstream ${upstreamBaseUrl}`);
 }
