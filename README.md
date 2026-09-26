@@ -29,9 +29,13 @@ Environment variables:
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `T3_CLB_HUB_MANAGEMENT_KEY` | required | Bearer or `X-Management-Key` credential |
+| `T3_CLB_HUB_MANAGEMENT_KEY_FILE` | unset | Read the credential from a file instead |
 | `T3_CLB_HUB_HOST` | `127.0.0.1` | Listen address |
 | `T3_CLB_HUB_PORT` | `8317` | Listen port |
 | `T3_CLB_HUB_UPSTREAM` | `http://127.0.0.1:2455` | codex-lb base URL |
+
+Set either management-key variable. The file form takes precedence and is
+recommended for long-running services.
 
 Keep the listener on loopback when exposing it through Tailscale Serve. In T3
 Code, use the Serve URL and the same management key.
