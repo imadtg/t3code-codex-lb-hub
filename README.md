@@ -1,7 +1,8 @@
 # T3 Code codex-lb hub bridge
 
 This small adapter exposes the CLIProxyAPI management endpoints used by T3
-Code's Usage → Limits integration and reads account data from codex-lb.
+Code's Usage → Limits integration and reads account data from codex-lb's
+API-key-authenticated `/api/proxy-management/accounts` endpoint.
 
 Supported endpoints:
 

@@ -40,7 +40,7 @@ beforeAll(() => {
       const body = request.method === "POST" ? await request.json() : null;
       seen.push({ path: url.pathname, body, authorization: request.headers.get("authorization") });
       if (url.pathname === "/health") return Response.json({ status: "ok" });
-      if (url.pathname === "/api/accounts") return Response.json({ accounts });
+      if (url.pathname === "/api/proxy-management/accounts") return Response.json({ accounts });
       if (url.pathname.endsWith("/rate-limit-reset-credits")) {
         return Response.json({
           availableCount: 1,

@@ -193,7 +193,7 @@ export function createHubHandler(options: HubOptions = {}): (request: Request) =
     if (!fresh && accountCache && accountCache.expiresAt > Date.now()) return accountCache.value;
     if (!fresh && accountRequest) return accountRequest;
     const pending = (async () => {
-      const response = await upstream("/api/accounts");
+      const response = await upstream("/api/proxy-management/accounts");
       if (!response.ok) throw new Error(`codex-lb accounts returned HTTP ${response.status}`);
       const value = (await response.json()) as AccountsResponse;
       if (!Array.isArray(value.accounts)) throw new Error("codex-lb returned an invalid accounts response");
