@@ -333,10 +333,15 @@ if (import.meta.main) {
   const hostname = process.env.T3_CLB_HUB_HOST ?? "127.0.0.1";
   const port = Number(process.env.T3_CLB_HUB_PORT ?? "8317");
   const upstreamBaseUrl = process.env.T3_CLB_HUB_UPSTREAM ?? "http://127.0.0.1:2455";
-  const managementKeyFile = process.env.T3_CLB_HUB_MANAGEMENT_KEY_FILE?.trim();
-  const managementKey = managementKeyFile
-    ? (await Bun.file(managementKeyFile).text()).trim()
-    : process.env.T3_CLB_HUB_MANAGEMENT_KEY?.trim() ?? "";
+  const configuredKeyFile = process.env.T3_CLB_HUB_MANAGEMENT_KEY_FILE?.trim();
+  const defaultKeyFile = process.env.HOME
+    ? `${process.env.HOME}/.config/t3code-codex-lb-hub/management-key`
+    : "";
+  const managementKeyFile = configuredKeyFile || defaultKeyFile;
+  const managementKey = process.env.T3_CLB_HUB_MANAGEMENT_KEY?.trim() ||
+    (managementKeyFile && await Bun.file(managementKeyFile).exists()
+      ? (await Bun.file(managementKeyFile).text()).trim()
+      : "");
   if (!managementKey) {
     throw new Error("set T3_CLB_HUB_MANAGEMENT_KEY or T3_CLB_HUB_MANAGEMENT_KEY_FILE");
   }
