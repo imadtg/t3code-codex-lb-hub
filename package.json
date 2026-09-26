@@ -1,0 +1,14 @@
+{
+  "name": "t3code-codex-lb-hub",
+  "version": "0.1.0",
+  "description": "CLIProxyAPI compatibility bridge for T3 Code and codex-lb",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "t3code-codex-lb-hub": "./server.ts"
+  },
+  "scripts": {
+    "start": "./server.ts",
+    "test": "bun test"
+  }
+}
