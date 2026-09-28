@@ -1,5 +1,9 @@
 #!/usr/bin/env bun
 
+import { randomBytes } from "node:crypto";
+import { mkdir, open, readFile } from "node:fs/promises";
+import { dirname } from "node:path";
+
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
 type CodexLbWindow = {
@@ -335,6 +339,42 @@ export function createHubHandler(options: HubOptions = {}): (request: Request) =
   };
 }
 
+async function readManagementKeyFile(path: string): Promise<string> {
+  const key = (await readFile(path, "utf8")).trim();
+  if (!key) throw new Error(`management key file is empty: ${path}`);
+  return key;
+}
+
+export async function resolveManagementKey(environmentKey: string | undefined, path: string): Promise<string> {
+  const configured = environmentKey?.trim();
+  if (configured) return configured;
+  if (!path) throw new Error("set T3_CLB_HUB_MANAGEMENT_KEY or T3_CLB_HUB_MANAGEMENT_KEY_FILE");
+
+  try {
+    return await readManagementKeyFile(path);
+  } catch (cause) {
+    if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "ENOENT") throw cause;
+  }
+
+  await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+  const generated = randomBytes(32).toString("base64url");
+  try {
+    const file = await open(path, "wx", 0o600);
+    try {
+      await file.writeFile(`${generated}\n`, "utf8");
+    } finally {
+      await file.close();
+    }
+    console.log(`[t3code-codex-lb-hub] generated management key at ${path}`);
+    return generated;
+  } catch (cause) {
+    if (cause instanceof Error && "code" in cause && cause.code === "EEXIST") {
+      return await readManagementKeyFile(path);
+    }
+    throw cause;
+  }
+}
+
 if (import.meta.main) {
   const hostname = process.env.T3_CLB_HUB_HOST ?? "127.0.0.1";
   const port = Number(process.env.T3_CLB_HUB_PORT ?? "8317");
@@ -353,13 +393,7 @@ if (import.meta.main) {
     ? `${process.env.HOME}/.config/t3code-codex-lb-hub/management-key`
     : "";
   const managementKeyFile = configuredKeyFile || defaultKeyFile;
-  const managementKey = process.env.T3_CLB_HUB_MANAGEMENT_KEY?.trim() ||
-    (managementKeyFile && await Bun.file(managementKeyFile).exists()
-      ? (await Bun.file(managementKeyFile).text()).trim()
-      : "");
-  if (!managementKey) {
-    throw new Error("set T3_CLB_HUB_MANAGEMENT_KEY or T3_CLB_HUB_MANAGEMENT_KEY_FILE");
-  }
+  const managementKey = await resolveManagementKey(process.env.T3_CLB_HUB_MANAGEMENT_KEY, managementKeyFile);
   Bun.serve({ hostname, port, fetch: createHubHandler({ upstreamBaseUrl, upstreamApiKey, managementKey }) });
   console.log(`[t3code-codex-lb-hub] listening on http://${hostname}:${port}, upstream ${upstreamBaseUrl}`);
 }

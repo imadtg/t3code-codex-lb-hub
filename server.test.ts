@@ -1,6 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-import { createHubHandler } from "./server.ts";
+import { createHubHandler, resolveManagementKey } from "./server.ts";
 
 const accounts = [
   {
@@ -57,6 +60,33 @@ beforeAll(() => {
     },
   });
   upstreamUrl = `http://127.0.0.1:${upstream.port}`;
+});
+
+describe("management key storage", () => {
+  test("generates a private key once and reuses it", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "t3code-codex-lb-hub-"));
+    const path = join(directory, "config", "management-key");
+    try {
+      const generated = await resolveManagementKey(undefined, path);
+      expect(generated).toHaveLength(43);
+      expect((await readFile(path, "utf8")).trim()).toBe(generated);
+      expect((await stat(path)).mode & 0o777).toBe(0o600);
+      expect(await resolveManagementKey(undefined, path)).toBe(generated);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  test("prefers an explicitly supplied key without creating a file", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "t3code-codex-lb-hub-"));
+    const path = join(directory, "management-key");
+    try {
+      expect(await resolveManagementKey(" explicit ", path)).toBe("explicit");
+      expect(Bun.file(path).exists()).resolves.toBe(false);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
 });
 
 afterAll(() => upstream.stop(true));

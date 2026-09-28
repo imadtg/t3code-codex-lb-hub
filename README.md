@@ -19,26 +19,28 @@ arbitrary token-bearing HTTP forwarding.
 
 ## Run
 
-The executable requires a management key and listens on loopback by default:
+The executable listens on loopback by default and creates a management key on
+first start:
 
 ```sh
-T3_CLB_HUB_MANAGEMENT_KEY='replace-me' t3code-codex-lb-hub
+t3code-codex-lb-hub
+cat ~/.config/t3code-codex-lb-hub/management-key
 ```
 
 Environment variables:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `T3_CLB_HUB_MANAGEMENT_KEY` | required | Bearer or `X-Management-Key` credential |
-| `T3_CLB_HUB_MANAGEMENT_KEY_FILE` | `~/.config/t3code-codex-lb-hub/management-key` | Read the credential from a file instead |
+| `T3_CLB_HUB_MANAGEMENT_KEY` | generated | Override the Bearer or `X-Management-Key` credential |
+| `T3_CLB_HUB_MANAGEMENT_KEY_FILE` | `~/.config/t3code-codex-lb-hub/management-key` | Persist the generated credential or read an existing one |
 | `T3_CLB_HUB_HOST` | `127.0.0.1` | Listen address |
 | `T3_CLB_HUB_PORT` | `8317` | Listen port |
 | `T3_CLB_HUB_UPSTREAM` | `http://127.0.0.1:2455` | codex-lb base URL |
 | `T3_CLB_HUB_UPSTREAM_API_KEY` | optional | Bearer credential for codex-lb |
 | `T3_CLB_HUB_UPSTREAM_API_KEY_FILE` | `~/.config/codex-lb/client-api-key` | Read the codex-lb credential from a file instead |
 
-Set either management-key variable. The environment value takes precedence;
-the file form is recommended for long-running services.
+The environment value takes precedence. Otherwise, the bridge reads the key
+file or creates it atomically with mode `0600` when it does not exist.
 
 When codex-lb API-key authentication is enabled, set either upstream API-key
 variable. Its environment value also takes precedence over the file.
