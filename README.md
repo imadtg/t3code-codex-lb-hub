@@ -46,13 +46,16 @@ variable. Its environment value also takes precedence over the file.
 Keep the listener on loopback when exposing it through Tailscale Serve. In T3
 Code, use the Serve URL and the same management key.
 
-## Install from GitHub with Bun
+## Run from GitHub with Bun
 
-Pin an audited tag or commit:
+Run the package directly without a checkout or global installation:
 
 ```sh
-bun add --global github:imadtg/t3code-codex-lb-hub#COMMIT
+bunx --bun github:imadtg/t3code-codex-lb-hub#main
 ```
+
+Bun caches the resolved Git package. Use a tag or commit after `#` when a
+specific revision is required.
 
 ## Development
 
