@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "./server.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "check:codex-lb": "bun scripts/check-codex-lb.ts"
   }
 }

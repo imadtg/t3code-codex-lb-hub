@@ -4,6 +4,8 @@ import { randomBytes } from "node:crypto";
 import { mkdir, open, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
+import { createDashboardClient } from "./dashboard-client.ts";
+
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
 type CodexLbWindow = {
@@ -44,6 +46,8 @@ type ApiCallRequest = {
 type HubOptions = {
   upstreamBaseUrl?: string;
   upstreamApiKey?: string;
+  dashboardIdentity?: string;
+  dashboardLocalAddress?: string;
   managementKey?: string;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
@@ -193,6 +197,15 @@ export function createHubHandler(options: HubOptions = {}): (request: Request) =
       },
     });
 
+  const dashboard = options.dashboardIdentity
+    ? createDashboardClient({
+      baseUrl: upstreamBaseUrl,
+      identity: options.dashboardIdentity,
+      localAddress: options.dashboardLocalAddress,
+      timeoutMs,
+    })
+    : upstream;
+
   const accounts = async (fresh = false): Promise<AccountsResponse> => {
     if (!fresh && accountCache && accountCache.expiresAt > Date.now()) return accountCache.value;
     if (!fresh && accountRequest) return accountRequest;
@@ -230,19 +243,19 @@ export function createHubHandler(options: HubOptions = {}): (request: Request) =
     }
 
     if (method === "GET" && path === CREDIT_LIST_PATH) {
-      const response = await upstream(
+      const response = await dashboard(
         `/api/accounts/${encodeURIComponent(account.accountId)}/rate-limit-reset-credits`,
       );
       const rawBody = await response.text();
-      const normalized = response.ok
-        ? normalizeCreditSnapshot(rawBody ? JSON.parse(rawBody) : null)
-        : { credits: [] };
-      return json({ status_code: response.ok ? 200 : response.status, header: {}, body: JSON.stringify(normalized) });
+      const body = response.ok
+        ? JSON.stringify(normalizeCreditSnapshot(rawBody ? JSON.parse(rawBody) : null))
+        : rawBody;
+      return json({ status_code: response.status, header: {}, body });
     }
 
     if (method === "POST" && path === CREDIT_CONSUME_PATH) {
       const data = body.data ? JSON.parse(body.data) as Record<string, unknown> : {};
-      const response = await upstream(
+      const response = await dashboard(
         `/api/accounts/${encodeURIComponent(account.accountId)}/rate-limit-reset-credits/consume`,
         {
           method: "POST",
@@ -394,6 +407,10 @@ if (import.meta.main) {
     : "";
   const managementKeyFile = configuredKeyFile || defaultKeyFile;
   const managementKey = await resolveManagementKey(process.env.T3_CLB_HUB_MANAGEMENT_KEY, managementKeyFile);
-  Bun.serve({ hostname, port, fetch: createHubHandler({ upstreamBaseUrl, upstreamApiKey, managementKey }) });
+  const dashboardIdentity = process.env.T3_CLB_HUB_DASHBOARD_IDENTITY?.trim();
+  const dashboardLocalAddress = process.env.T3_CLB_HUB_DASHBOARD_LOCAL_ADDRESS?.trim();
+  Bun.serve({ hostname, port, fetch: createHubHandler({
+    upstreamBaseUrl, upstreamApiKey, managementKey, dashboardIdentity, dashboardLocalAddress,
+  }) });
   console.log(`[t3code-codex-lb-hub] listening on http://${hostname}:${port}, upstream ${upstreamBaseUrl}`);
 }
